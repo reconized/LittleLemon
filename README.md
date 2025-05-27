@@ -57,27 +57,27 @@ Uses **Djoser** for authentication endpoints.
 
 | Endpoint                    | Method | Access         | Purpose                                  |
 |----------------------------|--------|----------------|------------------------------------------|
-| `/api/users`               | POST   | Public         | Register new user                        |
-| `/api/users/me/`           | GET    | Authenticated  | Get current user info                    |
-| `/token/login/`            | POST   | Public         | Token generation for login               |
+| `/auth/users`               | POST   | Public         | Register new user                        |
+| `/auth/users/me/`           | GET    | Authenticated  | Get current user info                    |
+| `/auth/token/login/`        | POST   | Public         | Token generation for login               |
 
 #### Register a new user
 ```bash
-curl -X POST http://localhost:8000/api/users/ \
+curl -X POST http://localhost:8000/auth/users/ \
 -H "Content-Type: application/json" \
 -d '{"username": "john", "email": "john@example.com", "password": "pass1234"}'
 ```
 
 #### Login and get auth token
 ```bash
-curl -X POST http://localhost:8000/token/login/ \
+curl -X POST http://localhost:8000/auth/token/login/ \
 -H "Content-Type: application/json" \
 -d '{"username": "john", "password": "pass1234"}'
 ```
 
 #### Get current user
 ```bash
-curl -X GET http://localhost:8000/api/users/me/ \
+curl -X GET http://localhost:8000/auth/users/me/ \
 -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 

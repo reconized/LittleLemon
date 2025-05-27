@@ -27,7 +27,7 @@ class MenuCategoriesView(generics.ListCreateAPIView):
 class MenuCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsManagerOrReadOnly]
+    permission_classes = [IsManager]
 
 class MenuItemListCreateView(generics.ListCreateAPIView):
     queryset = MenuItem.objects.all()
@@ -89,7 +89,7 @@ class MenuItemsByCategoryView(generics.ListAPIView):
 
 class ManagerGroupUserListCreateView(generics.GenericAPIView):
     serializer_class = AddUserToManagerGroupSerializer
-    permission_classes = [IsManagerOrReadOnly]
+    permission_classes = [IsManager]
     queryset = User.objects.all()
 
     def get(self, request, *args, **kwargs):
@@ -179,6 +179,8 @@ class DeliveryGroupUserDeleteView(APIView):
             return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
         except Group.DoesNotExist:
             return Response({'detail': 'Delivery group does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+        if not group.user_set.filter(pk=user.pk).exists():
+            return Response({'detail': f'User {user.username} is not found in the group'}, status=status.HTTP_404_NOT_FOUND)
         
         group.user_set.remove(user)
         return Response({'detail': f'User {user.username} removed from Delivery group.'}, status=status.HTTP_200_OK)
