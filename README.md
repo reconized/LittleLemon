@@ -15,7 +15,7 @@ This API enables the Little Lemon restaurant to support web and mobile applicati
 - Allow client applications to interact with restaurant data
 - Role-based access control for managers, delivery crew, and customers
 - Full CRUD functionality for menu items, cart, and order management
-- Support for user registration, authentication, throttling, and permissions
+- Support for user registration (Djoser), authentication, throttling, and permissions
 
 ---
 
@@ -57,7 +57,7 @@ Uses **Djoser** for authentication endpoints.
 
 | Endpoint                    | Method | Access         | Purpose                                  |
 |----------------------------|--------|----------------|------------------------------------------|
-| `/auth/users`               | POST   | Public         | Register new user                        |
+| `/auth/users/`              | POST   | Public         | Register new user                        |
 | `/auth/users/me/`           | GET    | Authenticated  | Get current user info                    |
 | `/auth/token/login/`        | POST   | Public         | Token generation for login               |
 
@@ -78,7 +78,7 @@ curl -X POST http://localhost:8000/auth/token/login/ \
 #### Get current user
 ```bash
 curl -X GET http://localhost:8000/auth/users/me/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 ---
@@ -89,19 +89,19 @@ curl -X GET http://localhost:8000/auth/users/me/ \
 
 | Endpoint                    | Method                  | Access        | Purpose                      |
 |-----------------------------|-------------------------|---------------|------------------------------|
-| `/api/categories`           | GET                     | Manager       | View all menu categories     |
+| `/api/categories/`          | GET                     | Manager       | View all menu categories     |
 | `/api/categories/{id}`      | POST/PUT/PATCH/DELETE   | Manager       | View specific menu item      |
 
 #### Get all menu categories
 ```bash
 curl -X GET http://localhost:8000/api/categories/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 #### Create a menu category
 ```bash
 curl -X POST http://localhost:8000/api/categories/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 -H "Content-Type: application/json" \
 -d '{"title": "desserts"}'
 ```
@@ -109,7 +109,7 @@ curl -X POST http://localhost:8000/api/categories/ \
 #### Update a menu category (PUT/PATCH)
 ```bash
 curl -X PUT http://localhost:8000/api/categories/1 \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 -H "Content-Type: application/json" \
 -d '{"title": "desserts"}'
 ```
@@ -123,13 +123,17 @@ curl -X PUT http://localhost:8000/api/categories/1 \
 | Endpoint                     | Method | Access        | Purpose                      |
 |-----------------------------|--------|---------------|------------------------------|
 | `/api/menu-items`           | GET    | All           | View all menu items          |
-| `/api/menu-items/{id}`      | GET    | All           | View specific menu item      |
+| `/api/menu-items/{id}/`     | GET    | All           | View specific menu item      |
 | POST/PUT/PATCH/DELETE       | —      | Forbidden     | Returns 403 Forbidden        |
 
 #### Get all menu items
 ```bash
-curl -X GET http://localhost:8000/api/menu-items/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+curl -X GET http://localhost:8000/api/menu-items
+```
+
+#### Get specific menu item
+```bash
+curl -X GET http://localhost:8000/api/menu-items/4/
 ```
 
 #### View menu items by category
@@ -143,22 +147,22 @@ curl "localhost:8000/api/menu-items/?category=main"
 | Endpoint                     | Method         | Purpose                            |
 |-----------------------------|----------------|------------------------------------|
 | `/api/menu-items`           | GET, POST      | List/create menu items             |
-| `/api/menu-items/{id}`      | GET, PUT, PATCH, DELETE | Retrieve/update/delete items     |
+| `/api/menu-items/{id}/`     | GET, PUT, PATCH, DELETE | Retrieve/update/delete items     |
 
 #### Create a menu item (Manager only)
 ```bash
 curl -X POST http://localhost:8000/api/menu-items/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
--d '{"title": "Pasta", "price": "12.99", "featured": false, "category": 1}'
+-d '{"title": "Pasta", "price": "12.99", "featured": false, "category_id": 1}'
 ```
 
 #### Update a menu item (Manager only)
 ```bash
 curl -X PATCH http://localhost:8000/api/menu-items/1/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
--d '{"title": "{title}", "price": "{value}", "featured": "{value}", "category_id": "{id}"}'
+-d '{"title": "Shrimp Pasta", "price": "14.99", "featured": true, "category_id": 1}'
 ```
 ---
 
@@ -166,17 +170,17 @@ curl -X PATCH http://localhost:8000/api/menu-items/1/ \
 
 | Endpoint                                      | Method   | Purpose                                |
 |----------------------------------------------|----------|----------------------------------------|
-| `/api/groups/manager/users`                  | GET      | List all managers                      |
-| `/api/groups/manager/users`                  | POST     | Add user to manager group              |
-| `/api/groups/manager/users/{userId}`         | DELETE   | Remove user from manager group         |
-| `/api/groups/delivery-crew/users`            | GET      | List all delivery crew members         |
-| `/api/groups/delivery-crew/users`            | POST     | Add user to delivery crew group        |
-| `/api/groups/delivery-crew/users/{userId}`   | DELETE   | Remove user from delivery crew group   |
+| `/api/groups/manager/users/`                 | GET      | List all managers                      |
+| `/api/groups/manager/users/`                 | POST     | Add user to manager group              |
+| `/api/groups/manager/users/{userId}/`        | DELETE   | Remove user from manager group         |
+| `/api/groups/delivery-crew/users/`           | GET      | List all delivery crew members         |
+| `/api/groups/delivery-crew/users/`           | POST     | Add user to delivery crew group        |
+| `/api/groups/delivery-crew/users/{userId}/`  | DELETE   | Remove user from delivery crew group   |
 
 #### Assign a user to manager group
 ```bash
 curl -X POST http://localhost:8000/api/groups/manager/users/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
 -d '{"username": "john"}'
 ```
@@ -184,7 +188,7 @@ curl -X POST http://localhost:8000/api/groups/manager/users/ \
 #### Remove user from delivery crew group
 ```bash 
 curl -X DELETE http://localhost:8000/api/groups/delivery-crew/users/3/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 ---
 
@@ -192,14 +196,14 @@ curl -X DELETE http://localhost:8000/api/groups/delivery-crew/users/3/ \
 
 | Endpoint                   | Method | Purpose                                      |
 |---------------------------|--------|----------------------------------------------|
-| `/api/cart/menu-items`    | GET    | View current cart items                      |
-| `/api/cart/menu-items`    | POST   | Add item to cart                             |
-| `/api/cart/menu-items`    | DELETE | Clear cart                                   |
+| `/api/cart/menu-items/`   | GET    | View current cart items                      |
+| `/api/cart/menu-items/`   | POST   | Add item to cart                             |
+| `/api/cart/menu-items/`   | DELETE | Clear cart                                   |
 
 #### Add item to cart
 ```bash
 curl -X POST http://localhost:8000/api/cart/menu-items/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
 -d '{"menuitem_name": "Beef Pasta", "quantity": 2}'
 ```
@@ -207,13 +211,13 @@ curl -X POST http://localhost:8000/api/cart/menu-items/ \
 #### View cart
 ```bash
 curl -X GET http://localhost:8000/api/cart/menu-items/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 #### Clear cart
 ```bash
 curl -X DELETE http://localhost:8000/api/cart/menu-items/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 ---
 
@@ -223,41 +227,41 @@ curl -X DELETE http://localhost:8000/api/cart/menu-items/ \
 
 | Endpoint                  | Method      | Purpose                                                |
 |--------------------------|-------------|--------------------------------------------------------|
-| `/api/orders`            | GET         | View all your orders                                  |
-| `/api/orders`            | POST        | Create order from current cart, clear cart            |
-| `/api/orders/{orderId}`  | GET         | View specific order (if owned by user)                |
-| `/api/orders/{orderId}`  | PUT/PATCH   | Update status (if user is manager)                    |
+| `/api/orders/`           | GET         | View all your orders                                  |
+| `/api/orders/`           | POST        | Create order from current cart, clear cart            |
+| `/api/orders/{orderId}/` | GET         | View specific order (if owned by user)                |
+| `/api/orders/{orderId}/` | PUT/PATCH   | Update status (if user is manager)                    |
 
 #### Create order from cart (Customer only)
 ```bash
 curl -X POST http://localhost:8000/api/orders/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 #### Get current user's orders
 ```bash
 curl -X GET http://localhost:8000/api/orders/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 #### Get specific order (if owned)
 ```bash
 curl -X GET http://localhost:8000/api/orders/1/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 ### Manager
 
 | Endpoint                  | Method      | Purpose                                                |
 |--------------------------|-------------|--------------------------------------------------------|
-| `/api/orders`            | GET         | View all orders across users                          |
-| `/api/orders/{orderId}`  | PUT/PATCH   | Assign delivery crew and update status                |
-| `/api/orders/{orderId}`  | DELETE      | Delete order                                           |
+| `/api/orders/`           | GET         | View all orders across users                          |
+| `/api/orders/{orderId}/` | PUT/PATCH   | Assign delivery crew and update status                |
+| `/api/orders/{orderId}/` | DELETE      | Delete order                                           |
 
 #### Manager assigns delivery crew and status
 ```bash
 curl -X PATCH http://localhost:8000/api/orders/1/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
 -d '{"delivery_crew": "driver1", "status": 0}'
 ```
@@ -265,26 +269,26 @@ curl -X PATCH http://localhost:8000/api/orders/1/ \
 #### Delete an order (Manager only)
 ```bash
 curl -X DELETE http://localhost:8000/api/orders/1/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 ### Delivery Crew
 
 | Endpoint                  | Method    | Purpose                                       |
 |--------------------------|-----------|-----------------------------------------------|
-| `/api/orders`            | GET       | View orders assigned to delivery crew         |
-| `/api/orders/{orderId}`  | PATCH     | Update delivery status only                   |
+| `/api/orders/`            | GET       | View orders assigned to delivery crew         |
+| `/api/orders/{orderId}/`  | PATCH     | Update delivery status only                   |
 
 #### Delivery crew view assigned orders
 ```bash
 curl -X PATCH http://localhost:8000/api/orders/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+-H "Authorization: Token YOUR_ACCESS_TOKEN"
 ```
 
 #### Delivery crew updates order status only
 ```bash
 curl -X PATCH http://localhost:8000/api/orders/1/ \
--H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+-H "Authorization: Token YOUR_ACCESS_TOKEN" \
 -H "Content-Type: application/json" \
 -d '{"status": 1}'
 ```

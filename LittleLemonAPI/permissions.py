@@ -18,3 +18,6 @@ class IsCustomer(BasePermission):
     def has_permission(self, request, view):
         return not (request.user.groups.filter(name="manager").exists() or 
                     request.user.groups.filter(name="delivery-crew").exists())
+    
+def in_group(user, group_name):
+    return user.groups.filter(name=group_name).exists()

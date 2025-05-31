@@ -1,20 +1,22 @@
 from rest_framework import serializers
 from LittleLemonAPI.models import Category, MenuItem, Cart, Order, OrderItem
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['id', 'title']
+        fields = ['id', 'slug', 'title']
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    category_id = serializers.IntegerField(write_only=True)
     category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), source='category', 
+        write_only=True
+    )
+
     class Meta:
         model = MenuItem
         fields = ['id', 'title', 'price', 'featured', 'category', 'category_id']
-        read_only_fields = ['category']
-        depth = 1
 
 class MenuItemCategorySerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.title', read_only=True)
@@ -101,22 +103,6 @@ class CartSerializer(serializers.ModelSerializer):
     
     def get_price(self, obj):
         return obj.unit_price * obj.quantity
-    
-# class OrderItemSerializer(serializers.ModelSerializer):
-#     menuitem = serializers.StringRelatedField()
-
-#     class Meta:
-#         model = OrderItem
-#         fields = ['menuitem', 'quantity', 'unit_price', 'price']
-
-# class OrderSerializer(serializers.ModelSerializer):
-#     orderitem_set = OrderItemSerializer(many=True, read_only=True)
-#     user = serializers.StringRelatedField()
-#     delivery_crew = serializers.StringRelatedField()
-
-#     class Meta:
-#         model = Order
-#         fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date', 'orderitem_set']
 
 class UserPublicSerializer(serializers.ModelSerializer):
     class Meta:

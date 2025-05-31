@@ -6,19 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from LittleLemonAPI.models import MenuItem
 from LittleLemonAPI.serializers import MenuItemSerializer, CategorySerializer, UserSerializer, \
         AddUserToManagerGroupSerializer, AddUserToDeliveryGroupSerializer, CartSerializer, \
-        MenuItemCategorySerializer, OrderSerializer, OrderItemSerializer
+        MenuItemCategorySerializer, OrderSerializer
 from LittleLemonAPI.models import Category, Cart, Order, OrderItem
-from LittleLemonAPI.permissions import IsManagerOrReadOnly, IsManager, IsDeliveryCrew, IsCustomer
+from LittleLemonAPI.permissions import IsManagerOrReadOnly, IsManager, in_group
 from django.contrib.auth.models import User, Group
-from decimal import Decimal
-from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.core.exceptions import PermissionDenied
+from rest_framework.decorators import throttle_classes
 
-def in_group(user, group_name):
-    return user.groups.filter(name=group_name).exists()
 
-# Create your views here.
 class MenuCategoriesView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -29,37 +24,67 @@ class MenuCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CategorySerializer
     permission_classes = [IsManager]
 
-class MenuItemListCreateView(generics.ListCreateAPIView):
+class MenuItemList(generics.ListCreateAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
-    permission_classes = [IsManagerOrReadOnly]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
     ordering_fields = ['title', 'price', 'featured']
     search_fields = ['title']
 
-    def perform_create(self, serializer):
-        serializer.save()
+    @throttle_classes([AnonRateThrottle, UserRateThrottle])
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs) 
 
-    
+    def post(self, request, *args, **kwargs):
+        if not in_group(request.user, 'manager'):
+            return Response(
+                {"detail": "Only managers can add menu items."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().post(request, *args, **kwargs)
+
 class MenuItemDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
-    lookup_field = 'pk'
 
-    def update(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name='manager').exists():
-            return Response({'detail', 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
+    @throttle_classes([AnonRateThrottle, UserRateThrottle])
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs) 
     
-    def partial_update(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name='manager').exists():
-            return Response({'detail', 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
+    def put(self, request, *args, **kwargs):
+        if not in_group(request.user, 'manager'):
+            return Response(
+                {"detail": "Only managers can update menu items."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, *args, **kwargs):
+        if not in_group(request.user, 'manager'):
+            return Response(
+                {"detail": "Only managers can modify menu items."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def destroy(self, request, *args, **kwargs):
-        if not request.user.groups.filter(name='manager').exists():
-            return Response({'detail', 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
+    def delete(self, request, *args, **kwargs):
+        if not in_group(request.user, 'manager'):
+            return Response(
+                {"detail": "Only managers can delete menu items."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().delete(request, *args, **kwargs)
     
 class MenuItemsByCategoryView(generics.ListAPIView):
     serializer_class = MenuItemCategorySerializer
@@ -73,7 +98,8 @@ class MenuItemsByCategoryView(generics.ListAPIView):
             queryset = queryset.filter(category__title__iexact=category_name)
         
         return queryset
-
+    
+    @throttle_classes([AnonRateThrottle, UserRateThrottle])
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -140,7 +166,7 @@ class ManagerGroupUserDeleteView(APIView):
     
 class DeliveryGroupUserListCreateView(generics.GenericAPIView):
     serializer_class = AddUserToDeliveryGroupSerializer
-    permission_classes = [IsManagerOrReadOnly]
+    permission_classes = [IsManager]
     queryset = User.objects.all()
 
     def get(self, request, *args, **kwargs):
@@ -169,7 +195,7 @@ class DeliveryGroupUserListCreateView(generics.GenericAPIView):
             return Response({'detail': f'User {user.username} added to Delivery group.'}, status=status.HTTP_201_CREATED)
     
 class DeliveryGroupUserDeleteView(APIView):
-    permission_classes = [IsManagerOrReadOnly]
+    permission_classes = [IsManager]
 
     def delete(self, request, userId, *args, **kwargs):
         try:
@@ -228,30 +254,30 @@ class OrderView(generics.ListCreateAPIView):
         else:
             return Order.objects.filter(user=user)
 
-    @transaction.atomic
     def post(self, request, *args, **kwargs):
         user = request.user
         cart_items = Cart.objects.filter(user=user)
 
-        if not cart_items.exists():
-            return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            if not cart_items.exists():
+                return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-        total = sum(item.unit_price * item.quantity for item in cart_items)
-        order = Order.objects.create(user=user, total=total, status=None)
+            total = sum(item.unit_price * item.quantity for item in cart_items)
+            order = Order.objects.create(user=user, total=total, status=None)
 
-        order_items = [
-            OrderItem(
-                order=order,
-                menuitem=item.menuitem,
-                quantity=item.quantity,
-                unit_price=item.unit_price,
-                price=item.unit_price * item.quantity
-            ) for item in cart_items
-        ]
-        OrderItem.objects.bulk_create(order_items)
+            order_items = [
+                OrderItem(
+                    order=order,
+                    menuitem=item.menuitem,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    price=item.unit_price * item.quantity
+                ) for item in cart_items
+            ]
+            OrderItem.objects.bulk_create(order_items)
 
-        cart_items.delete()
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+            cart_items.delete()
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
     
 class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OrderSerializer
@@ -325,7 +351,7 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"error": "Unauthorized."}, status=403)
 
     def put(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)  # Delegate to patch for logic reuse
+        return self.partial_update(request, *args, **kwargs) 
 
     def delete(self, request, *args, **kwargs):
         if not request.user.groups.filter(name="manager").exists():
